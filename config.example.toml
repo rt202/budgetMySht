@@ -1,0 +1,41 @@
+# Copy to config.toml and fill in. Do not commit config.toml.
+# The SimpleFIN access URL is created during the in-app setup flow from a
+# one-time setup token. You normally do not paste it here yourself; the app
+# will store it after the first setup. This example is only for reference.
+#
+# In hosted environments (Streamlit Cloud, GitHub Actions), prefer setting
+# DATABASE_URL and SIMPLEFIN_ACCESS_URL as environment variables / secrets
+# rather than editing this file.
+
+[simplefin]
+# Filled in automatically when you complete setup in the app.
+access_url = ""
+
+[storage]
+# Path to the local SQLite database file (relative to the project root).
+# Used when database_url is empty.
+db_path = "data/budget.db"
+
+# Postgres connection string for Supabase (or any Postgres). When set, the app
+# uses Postgres instead of SQLite. Example:
+#   database_url = "postgresql://user:pass@db.xxxxx.supabase.co:5432/postgres"
+# Leave empty for local-only SQLite mode.
+# database_url = ""
+
+[app]
+# Default starting category list applied on first run.
+default_categories = [
+    "Income",
+    "Groceries",
+    "Restaurants",
+    "Transportation",
+    "Subscriptions",
+    "Rent",
+    "Utilities",
+    "Shopping",
+    "Travel",
+    "Health",
+    "Transfers",
+    "Fees",
+    "Other",
+]

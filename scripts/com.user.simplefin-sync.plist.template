@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  macOS launchd template for the daily SimpleFIN sync.
+
+  Install:
+    1. Copy this file to ~/Library/LaunchAgents/com.user.simplefin-sync.plist
+    2. Replace the two PLACEHOLDER values below.
+    3. Load it with: launchctl load -w ~/Library/LaunchAgents/com.user.simplefin-sync.plist
+
+  Uninstall:
+    launchctl unload -w ~/Library/LaunchAgents/com.user.simplefin-sync.plist
+    rm ~/Library/LaunchAgents/com.user.simplefin-sync.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.simplefin-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>PLACEHOLDER_PYTHON_BIN</string>
+        <string>-m</string>
+        <string>scripts.sync</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>PLACEHOLDER_PROJECT_ROOT</string>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>PLACEHOLDER_PROJECT_ROOT/data/sync.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>PLACEHOLDER_PROJECT_ROOT/data/sync.err.log</string>
+</dict>
+</plist>

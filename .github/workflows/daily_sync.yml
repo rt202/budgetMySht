@@ -1,0 +1,45 @@
+name: Daily SimpleFIN Sync
+
+# Runs scripts/sync.py once a day on GitHub's servers so the budget app keeps
+# its data fresh even when your laptop is asleep. Requires two repository
+# secrets:
+#
+#   DATABASE_URL          Supabase Postgres connection string
+#   SIMPLEFIN_ACCESS_URL  Long-lived SimpleFIN access URL (created during
+#                         the in-app setup flow on your Mac)
+#
+# Add both at Settings -> Secrets and variables -> Actions.
+
+on:
+  schedule:
+    # 11:00 UTC = 7:00 AM ET / 4:00 AM PT. Tweak as you like.
+    - cron: "0 11 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: daily-simplefin-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run sync
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SIMPLEFIN_ACCESS_URL: ${{ secrets.SIMPLEFIN_ACCESS_URL }}
+        run: |
+          python -m scripts.sync
