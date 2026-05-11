@@ -23,6 +23,11 @@ db_path = "data/budget.db"
 # database_url = ""
 
 [app]
+# IANA timezone used to interpret SimpleFIN posting dates. Different SimpleFIN
+# providers send midnight in different timezones, which causes off-by-one-day
+# bugs if left as UTC. Set this to your bank's local timezone.
+timezone = "America/New_York"
+
 # Default starting category list applied on first run.
 default_categories = [
     "Income",
