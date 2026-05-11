@@ -31,3 +31,6 @@ dist/
 .idea/
 .vscode/
 *.swp
+
+# Agent files
+.agents/
