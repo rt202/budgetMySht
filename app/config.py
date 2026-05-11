@@ -51,6 +51,9 @@ DEFAULT_CATEGORIES: tuple[str, ...] = (
 )
 
 
+DEFAULT_TIMEZONE = "America/New_York"
+
+
 @dataclass
 class AppConfig:
     """In-memory view of the user's configuration."""
@@ -59,6 +62,7 @@ class AppConfig:
     access_url: str = ""
     default_categories: list[str] = field(default_factory=lambda: list(DEFAULT_CATEGORIES))
     database_url: str | None = None
+    timezone: str = DEFAULT_TIMEZONE
 
     @property
     def has_access_url(self) -> bool:
@@ -127,12 +131,14 @@ def load_config() -> AppConfig:
 
     access_url = _resolve("SIMPLEFIN_ACCESS_URL", simplefin.get("access_url"))
     database_url = _resolve("DATABASE_URL", storage.get("database_url"))
+    timezone_name = _resolve("APP_TIMEZONE", app_section.get("timezone")) or DEFAULT_TIMEZONE
 
     return AppConfig(
         db_path=db_path,
         access_url=access_url,
         default_categories=list(categories),
         database_url=database_url or None,
+        timezone=timezone_name,
     )
 
 

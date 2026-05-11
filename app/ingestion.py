@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Iterable
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .classifier import classify, load_rules
 from .config import AppConfig, load_config
@@ -44,14 +45,37 @@ def _to_float(value: Any) -> float:
         return 0.0
 
 
-def _to_iso(value: Any) -> str | None:
+def _resolve_tz(tz_name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        return ZoneInfo("UTC")
+
+
+def _to_local_date(value: Any, tz: ZoneInfo) -> str | None:
+    """Convert a SimpleFIN Unix timestamp to a ``YYYY-MM-DD`` calendar date.
+
+    SimpleFIN's ``posted`` and ``transacted_at`` fields encode a posting
+    *date*, not a precise instant — different providers send midnight in
+    different timezones, which leads to off-by-one-day display bugs if we
+    keep the raw UTC time. Collapsing to a local calendar date (interpreted
+    in the user's configured timezone) eliminates that ambiguity.
+
+    A value of ``0`` (epoch) is treated as missing: Chase via SimpleFIN
+    Bridge returns ``posted: 0`` for transactions that have not yet
+    formally posted (still in the "transacted, awaiting post" window). In
+    that case the caller should fall back to ``transacted_at``.
+    """
+
     if value is None or value == "":
         return None
     try:
         ts = int(value)
     except (TypeError, ValueError):
         return None
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+    if ts <= 0:
+        return None
+    return datetime.fromtimestamp(ts, tz=tz).strftime("%Y-%m-%d")
 
 
 def _start_run(conn: Conn) -> int:
@@ -87,7 +111,7 @@ def _finish_run(
     )
 
 
-def _upsert_account(conn: Conn, account: dict[str, Any]) -> None:
+def _upsert_account(conn: Conn, account: dict[str, Any], tz: ZoneInfo) -> None:
     org = account.get("org") or {}
     conn.execute(
         """
@@ -111,7 +135,7 @@ def _upsert_account(conn: Conn, account: dict[str, Any]) -> None:
             account.get("currency"),
             _to_float(account.get("balance")),
             _to_float(account.get("available-balance")),
-            _to_iso(account.get("balance-date")),
+            _to_local_date(account.get("balance-date"), tz),
         ),
     )
 
@@ -121,6 +145,7 @@ def _upsert_transaction(
     account_id: str,
     txn: dict[str, Any],
     auto_category: str | None,
+    tz: ZoneInfo,
 ) -> tuple[bool, bool]:
     """Insert or update one transaction. Returns (inserted, updated)."""
 
@@ -128,8 +153,12 @@ def _upsert_transaction(
     if not txn_id:
         return (False, False)
 
-    posted = _to_iso(txn.get("posted")) or _to_iso(txn.get("transacted_at")) or datetime.now(tz=timezone.utc).isoformat()
-    transacted = _to_iso(txn.get("transacted_at"))
+    posted = (
+        _to_local_date(txn.get("posted"), tz)
+        or _to_local_date(txn.get("transacted_at"), tz)
+        or datetime.now(tz=tz).strftime("%Y-%m-%d")
+    )
+    transacted = _to_local_date(txn.get("transacted_at"), tz)
     amount = _to_float(txn.get("amount"))
     description = txn.get("description") or ""
     payee = txn.get("payee")
@@ -268,6 +297,7 @@ def run_sync(config: AppConfig | None = None) -> SyncResult:
 
     inserted = 0
     updated = 0
+    tz = _resolve_tz(cfg.timezone)
 
     with connect(cfg) as conn:
         run_id = _start_run(conn)
@@ -276,12 +306,12 @@ def run_sync(config: AppConfig | None = None) -> SyncResult:
         for account in accounts:
             if not account.get("id"):
                 continue
-            _upsert_account(conn, account)
+            _upsert_account(conn, account, tz)
             txns = account.get("transactions") or []
             _store_raw(conn, run_id, account["id"], txns)
             for txn in txns:
                 auto_cat = classify(txn.get("description"), txn.get("payee"), rules)
-                ins, upd = _upsert_transaction(conn, account["id"], txn, auto_cat)
+                ins, upd = _upsert_transaction(conn, account["id"], txn, auto_cat, tz)
                 if ins:
                     inserted += 1
                 elif upd:
